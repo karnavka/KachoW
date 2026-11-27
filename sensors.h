@@ -1,22 +1,20 @@
-
 #pragma once
 
 void sensorsInit();
 
-//(ir) returns true if over the edge
 bool edgeL();
 bool edgeR();
 
-// one ultrasonic for call
+// call one of ultraonics per call
 void updateUltrasonic();
 
 // true if opponent was seen by that sensor within the last LOST_MS
 bool seesL();
 bool seesR();
 
-// Latest raw distances i
+// Latest raw distances in cm 
 int distL();
 int distR();
 
-// Side where the opponent was seen last -1 = left, +1 = right
+// -1 left 1 right
 int lastSeenDir();

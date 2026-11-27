@@ -1,9 +1,7 @@
-
-//           wait 5 s vut sensors are on
-//           spin toward where the opponent was last seen (legt right or both)
-//           when seen, charge and steer toward it 
-//           if edge is seen back up
-
+// Strategy: wait 5 s (looking for the opponent while standing still) 
+//           spin toward where the opponent was last seen 
+//           when seen go to it
+//           edge always wins: back up and turn away from the side that saw the edge.
 #include "config.h"
 #include "motors.h"
 #include "sensors.h"
@@ -12,16 +10,20 @@ enum State { SEARCH, ATTACK, EDGE_AVOID };
 State state = SEARCH;
 
 int edgeTurnDir = +1;
+
+void setLed(bool on) {
+  if (LED >= 0) digitalWrite(LED, on ? HIGH : LOW);
+}
 unsigned long edgeStart = 0;
 
 void setup() {
   Serial.begin(9600);
   sensorsInit();
-  pinMode(LED, OUTPUT);
-  pinMode(STBY, OUTPUT);
-  drive(0, 0);
+  motorsInit();
+  if (LED >= 0) pinMode(LED, OUTPUT);
 
 #if MODE == 2
+  // Motor test: forward 1 s, then spin right 1 s.
   delay(2000);
   drive(120, 120);  delay(1000);
   spin(+1, 120);    delay(1000);
@@ -33,9 +35,9 @@ void setup() {
   unsigned long start = millis();
   while (millis() - start < START_WAIT_MS) {
     updateUltrasonic();
-    digitalWrite(LED, (millis() / 250) % 2);  
+    setLed((millis() / 250) % 2); 
   }
-  digitalWrite(LED, LOW);
+  setLed(LOW);
   state = (seesL() || seesR()) ? ATTACK : SEARCH;
 #endif
 }
@@ -57,42 +59,42 @@ void loop() {
   updateUltrasonic();
   bool eL = edgeL(), eR = edgeR();
 
-
+ 
   if ((eL || eR) && state != EDGE_AVOID) {
     state = EDGE_AVOID;
     edgeStart = millis();
-    if (eL && !eR)      edgeTurnDir = +1;             
-    else if (eR && !eL) edgeTurnDir = -1;            
-    else                edgeTurnDir = lastSeenDir();  
+    if (eL && !eR)      edgeTurnDir = +1;             // edge on the left -> turn right
+    else if (eR && !eL) edgeTurnDir = -1;             // edge on the right -> turn left
+    else                edgeTurnDir = lastSeenDir();  // straight at the edge -> toward opponent
   }
 
   switch (state) {
 
     case EDGE_AVOID: {
-      digitalWrite(LED, LOW);
+      setLed(LOW); //rn does nothing btw but we can add separate diod
       unsigned long dt = millis() - edgeStart;
       if (dt < REVERSE_MS)                 drive(-REVERSE_SPD, -REVERSE_SPD);
       else if (dt < REVERSE_MS + TURN_MS)  spin(edgeTurnDir, TURN_SPD);
-      else if (eL || eR)                   edgeStart = millis();   
+      else if (eL || eR)                   edgeStart = millis();  
       else                                 state = SEARCH;
       break;
     }
 
     case ATTACK: {
       bool L = seesL(), R = seesR();
-      digitalWrite(LED, HIGH);
-      if (L && R)  drive(ATTACK_SPD, ATTACK_SPD);   
-      else if (L)  drive(STEER_SLOW, ATTACK_SPD);  
-      else if (R)  drive(ATTACK_SPD, STEER_SLOW);  
-      else         state = SEARCH;                
+      setLed(HIGH);
+      if (L && R)  drive(ATTACK_SPD, ATTACK_SPD);   //  push
+      else if (L)  drive(STEER_SLOW, ATTACK_SPD);   // left
+      else if (R)  drive(ATTACK_SPD, STEER_SLOW);   // ight
+      else         state = SEARCH;                  // lost it
       break;
     }
 
     case SEARCH:
     default: {
-      digitalWrite(LED, LOW);
+      setLed(LOW);
       if (seesL() || seesR()) { state = ATTACK; break; }
-      spin(lastSeenDir(), SEARCH_SPD);   
+      spin(lastSeenDir(), SEARCH_SPD);   // turn toward the side it disappeared on
       break;
     }
   }

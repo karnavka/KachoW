@@ -18,6 +18,8 @@ void sensorsInit() {
 bool edgeL() { return digitalRead(IR_L) == EDGE_LEVEL; }
 bool edgeR() { return digitalRead(IR_R) == EDGE_LEVEL; }
 
+
+//measure distanse to target
 static int pingCm(int trig, int echo) {
   digitalWrite(trig, LOW);
   delayMicroseconds(2);
@@ -25,7 +27,7 @@ static int pingCm(int trig, int echo) {
   delayMicroseconds(10);
   digitalWrite(trig, LOW);
   unsigned long dur = pulseIn(echo, HIGH, US_TIMEOUT_US);
-  if (dur == 0) return 999;             
+  if (dur == 0) return 999;          
   return (int)(dur * 0.0343 / 2.0);
 }
 
